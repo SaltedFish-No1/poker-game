@@ -1,0 +1,236 @@
+/* ============================================================
+   牌桌特效
+   对应设计文件：《斗地主发牌动画》《斗地主叫地主特效》《斗地主过牌提示特效》
+   《斗地主三带一特效》《斗地主顺子特效》《斗地主连对特效》《斗地主飞机特效》
+   《斗地主炸弹特效》《斗地主认输托管特效》《斗地主特效总览》
+   拿到正式样式后整体替换本文件；特效触发逻辑见 components/Effects.tsx。
+   ============================================================ */
+
+/* ---- 发牌动画：.hand.dealing 下每张牌从牌堆飞入（延迟由组件内联设置） ---- */
+.hand.dealing .pcard {
+  animation: dealIn 0.45s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+}
+@keyframes dealIn {
+  from {
+    transform: translateY(-46vh) translateX(10vw) rotate(-14deg) scale(0.55);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ---- 底牌揭晓：翻牌 ---- */
+.cardrow.reveal .pcard {
+  animation: flipIn 0.55s ease-out backwards;
+}
+.cardrow.reveal .pcard:nth-child(2) { animation-delay: 0.12s; }
+.cardrow.reveal .pcard:nth-child(3) { animation-delay: 0.24s; }
+@keyframes flipIn {
+  from { transform: rotateY(92deg) scale(0.9); opacity: 0.4; }
+  60% { transform: rotateY(-12deg) scale(1.04); }
+  to { transform: none; opacity: 1; }
+}
+
+/* ---- 叫分/过牌气泡：弹出 ---- */
+.bid-bubble, .pass-bubble { animation: bubblePop 0.3s cubic-bezier(0.3, 1.6, 0.6, 1) backwards; }
+@keyframes bubblePop {
+  from { transform: scale(0.4) translateY(6px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* ---- 全屏特效层 ---- */
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.fx-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 46px;
+  font-weight: 900;
+  letter-spacing: 10px;
+  color: var(--color-primary);
+  text-shadow: 0 2px 24px rgba(232, 185, 60, 0.55), 0 2px 4px rgba(0, 0, 0, 0.6);
+  animation: fxPop 1.5s ease-out forwards;
+}
+.fx-banner .fx-emoji { font-size: 52px; letter-spacing: 0; }
+@keyframes fxPop {
+  0% { transform: scale(0.3); opacity: 0; }
+  18% { transform: scale(1.18); opacity: 1; }
+  32% { transform: scale(1); }
+  78% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1.08); opacity: 0; }
+}
+
+/* 叫地主：金色升起 + 皇冠落下 */
+.fx-banner--landlord { color: var(--color-primary); }
+.fx-banner--landlord .fx-emoji { animation: crownDrop 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) backwards; }
+@keyframes crownDrop {
+  from { transform: translateY(-70px) rotate(-18deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* 顺子/连对：流光扫过 */
+.fx-banner--sweep {
+  background: linear-gradient(100deg, #f5cc5e 20%, #ffffff 40%, #f5cc5e 60%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fxPop 1.5s ease-out forwards, sweep 0.9s linear 2;
+}
+@keyframes sweep {
+  from { background-position: 120% 0; }
+  to { background-position: -60% 0; }
+}
+
+/* 三带一/三带对：轻量弹跳 */
+.fx-banner--bounce .fx-emoji { animation: fxBounce 0.7s ease-out; }
+@keyframes fxBounce {
+  0%, 100% { transform: none; }
+  35% { transform: translateY(-16px) scale(1.1); }
+  65% { transform: translateY(4px); }
+}
+
+/* 飞机：横穿屏幕 */
+.fx-plane {
+  position: absolute;
+  top: 34%;
+  left: -18%;
+  font-size: 60px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+  animation: flyAcross 1.6s cubic-bezier(0.3, 0.1, 0.6, 0.9) forwards;
+}
+.fx-plane::after {
+  content: '～～';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24px;
+  letter-spacing: -4px;
+}
+@keyframes flyAcross {
+  from { transform: translateX(0) rotate(6deg); }
+  to { transform: translateX(150vw) rotate(-4deg); }
+}
+
+/* 炸弹：红色 + 震屏 */
+.fx-banner--bomb {
+  color: #ff6b5e;
+  text-shadow: 0 2px 24px rgba(224, 90, 78, 0.7), 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+.fx-banner--bomb .fx-emoji { animation: bombBlast 0.6s ease-out; }
+@keyframes bombBlast {
+  0% { transform: scale(0.4); }
+  40% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.table-page.shake { animation: screenShake 0.5s linear; }
+@keyframes screenShake {
+  10% { transform: translate(-6px, 3px); }
+  30% { transform: translate(5px, -4px); }
+  50% { transform: translate(-4px, -2px); }
+  70% { transform: translate(3px, 3px); }
+  90% { transform: translate(-2px, 1px); }
+}
+
+/* 王炸：火箭升空 */
+.fx-rocket {
+  position: absolute;
+  bottom: -12%;
+  left: 50%;
+  font-size: 64px;
+  animation: rocketUp 1.4s cubic-bezier(0.4, 0, 0.7, 0.4) forwards;
+  filter: drop-shadow(0 0 18px rgba(232, 185, 60, 0.8));
+}
+@keyframes rocketUp {
+  from { transform: translate(-50%, 0) scale(0.8); opacity: 1; }
+  70% { opacity: 1; }
+  to { transform: translate(-50%, -120vh) scale(1.15); opacity: 0; }
+}
+
+/* ---- 要不起（过牌提示） ---- */
+.mustpass {
+  color: #ff8d82;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  animation: mustPassIn 0.4s cubic-bezier(0.3, 1.5, 0.6, 1) backwards, mustPassWiggle 1.2s ease-in-out 0.4s infinite;
+}
+@keyframes mustPassIn {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes mustPassWiggle {
+  0%, 100% { transform: none; }
+  30% { transform: rotate(-2.5deg); }
+  60% { transform: rotate(2.5deg); }
+}
+
+/* ---- 认输印章 ---- */
+.stamp {
+  display: inline-block;
+  padding: 4px 18px;
+  border: 3px solid var(--color-danger);
+  border-radius: var(--radius-s);
+  color: var(--color-danger);
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  transform: rotate(-12deg);
+  opacity: 0.92;
+  animation: stampIn 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) backwards;
+  text-shadow: none;
+}
+@keyframes stampIn {
+  from { transform: rotate(-12deg) scale(2.6); opacity: 0; }
+  to { transform: rotate(-12deg) scale(1); opacity: 0.92; }
+}
+
+/* ---- 结算：胜利/失败 ---- */
+.result-title { animation: resultIn 0.55s cubic-bezier(0.3, 1.5, 0.5, 1) backwards; }
+.result-title.win { color: var(--color-primary); }
+.result-title.lose { color: var(--color-text-dim); }
+@keyframes resultIn {
+  from { transform: scale(0.4) translateY(16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: var(--radius-l); }
+.confetti i {
+  position: absolute;
+  top: -16px;
+  width: 8px;
+  height: 13px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: confettiFall 2.4s linear infinite;
+}
+@keyframes confettiFall {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(480px) rotate(540deg); }
+}
+
+/* ---- 托管 ---- */
+.badge--pulse { animation: badgePulse 1.4s ease-in-out infinite; }
+@keyframes badgePulse {
+  50% { box-shadow: 0 0 0 5px rgba(232, 185, 60, 0.12); }
+}
+.auto-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 14px;
+}

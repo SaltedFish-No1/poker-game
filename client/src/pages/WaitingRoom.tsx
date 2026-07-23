@@ -8,6 +8,8 @@ export function WaitingRoom({
   onRemoveBot,
   onStart,
   onLeave,
+  canAddFriend,
+  onAddFriend,
 }: {
   room: RoomInfo;
   myId: string;
@@ -15,6 +17,8 @@ export function WaitingRoom({
   onRemoveBot: (seat: number) => void;
   onStart: () => void;
   onLeave: () => void;
+  canAddFriend: (playerId: string) => boolean;
+  onAddFriend: (playerId: string) => void;
 }) {
   const isHost = room.hostId === myId;
   const seats = Array.from({ length: room.maxPlayers }, (_, seat) =>
@@ -49,6 +53,11 @@ export function WaitingRoom({
                 {isHost && p.isBot && (
                   <Button size="sm" variant="ghost" onClick={() => onRemoveBot(seat)}>
                     移除
+                  </Button>
+                )}
+                {canAddFriend(p.id) && (
+                  <Button size="sm" variant="ghost" onClick={() => onAddFriend(p.id)}>
+                    ＋好友
                   </Button>
                 )}
               </div>

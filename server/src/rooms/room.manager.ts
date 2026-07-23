@@ -38,8 +38,8 @@ export class RoomManager {
       status: room.status,
       hostId: room.hostId,
       maxPlayers: room.maxPlayers,
-      players: room.players.map(({ id, name, seat, isBot, ready, connected }) => ({
-        id, name, seat, isBot, ready, connected,
+      players: room.players.map(({ id, name, seat, isBot, ready, connected, autoPlay }) => ({
+        id, name, seat, isBot, ready, connected, autoPlay,
       })),
     };
   }
@@ -72,7 +72,7 @@ export class RoomManager {
     };
     this.rooms.set(id, room);
     this.seatPlayer(room, {
-      id: socketId, name: playerName, seat: -1, isBot: false, ready: true, connected: true,
+      id: socketId, name: playerName, seat: -1, isBot: false, ready: true, connected: true, autoPlay: false,
     });
     this.memberOf.set(socketId, id);
     this.socketJoin(socketId, id);
@@ -99,7 +99,7 @@ export class RoomManager {
       room.players = room.players.filter((p) => p !== bot);
     }
     this.seatPlayer(room, {
-      id: socketId, name: playerName, seat: -1, isBot: false, ready: true, connected: true,
+      id: socketId, name: playerName, seat: -1, isBot: false, ready: true, connected: true, autoPlay: false,
     });
     this.memberOf.set(socketId, roomId);
     this.socketJoin(socketId, roomId);
@@ -185,7 +185,7 @@ export class RoomManager {
         BOT_NAMES.find((n) => !usedNames.has(n)) ?? `AI·${room.players.length + 1}号`;
       this.seatPlayer(room, {
         id: `bot:${room.id}:${room.players.length}:${added}:${Math.floor(Math.random() * 1e6)}`,
-        name, seat: -1, isBot: true, ready: true, connected: true,
+        name, seat: -1, isBot: true, ready: true, connected: true, autoPlay: false,
       });
       added++;
     }
@@ -205,6 +205,7 @@ export class RoomManager {
     const def = this.registry.get(room.gameId)!;
     this.fillWithBots(room);
     if (room.players.length < def.minPlayers) throw new Error('人数不足');
+    for (const p of room.players) p.autoPlay = false;
 
     room.match = def.createMatch({ playerCount: room.players.length });
     room.ai = def.createAi();
@@ -224,6 +225,18 @@ export class RoomManager {
     if (!player) throw new Error('你不在本局中');
     room.match.act(player.seat, action);
     this.afterAction(room);
+  }
+
+  /** 托管开关：开启后由 AI 代打，可随时取消 */
+  setAutoPlay(socketId: string, enabled: boolean): Room {
+    const room = this.requireRoom(socketId);
+    if (room.status !== 'playing') throw new Error('对局未开始');
+    const player = room.players.find((p) => p.id === socketId);
+    if (!player) throw new Error('你不在本局中');
+    player.autoPlay = enabled;
+    this.broadcastRoom(room);
+    if (enabled) void this.pump(room);
+    return room;
   }
 
   hint(socketId: string): GameAction | null {
@@ -256,7 +269,7 @@ export class RoomManager {
         const seat = room.match.currentSeat();
         if (seat === null) break;
         const player = room.players.find((p) => p.seat === seat);
-        if (!player || (!player.isBot && player.connected)) break;
+        if (!player || (!player.isBot && player.connected && !player.autoPlay)) break;
 
         await sleep(BOT_MOVE_DELAY_MS);
         if (room.matchEpoch !== epoch || room.status !== 'playing' || !room.match) break;

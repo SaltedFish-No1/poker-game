@@ -1,0 +1,92 @@
+/* ============================================================
+   业务弹窗样式
+   对应设计文件《好友申请与加倍确认弹窗.dc.html》——拿到正式样式后整体替换。
+   结构约定：
+   .dlg-double   加倍确认弹窗（.dlg-double__mult 倍数展示 / .countdown 倒计时）
+   .dlg-friend   好友申请弹窗（.dlg-friend__from 申请人信息）
+   .friends-list 好友列表（.friend-row / .dot 在线状态点）
+   ============================================================ */
+
+/* ---- 加倍确认弹窗 ---- */
+.dlg-double__mult {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  margin: var(--space-4) 0 var(--space-5);
+}
+.dlg-double__mult .cell {
+  text-align: center;
+  padding: 12px 20px;
+  border-radius: var(--radius-m);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  min-width: 96px;
+}
+.dlg-double__mult .cell b {
+  display: block;
+  font-size: 24px;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+.dlg-double__mult .cell.up b { color: var(--color-danger); }
+.dlg-double__mult .arrow { font-size: 20px; color: var(--color-text-dim); }
+.dlg-double__role {
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: 13px;
+  margin-bottom: var(--space-4);
+}
+
+.countdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  animation: countPulse 1s ease-in-out infinite;
+}
+@keyframes countPulse {
+  50% { box-shadow: 0 0 0 5px rgba(232, 185, 60, 0.15); }
+}
+
+/* ---- 好友申请弹窗 ---- */
+.dlg-friend__from {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--space-5);
+}
+.dlg-friend__from .who { font-weight: 700; font-size: 15px; }
+.dlg-friend__from .desc { color: var(--color-text-dim); font-size: 12px; }
+
+/* ---- 好友列表 ---- */
+.friends-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-m);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+}
+.friend-row .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-dim);
+  flex-shrink: 0;
+}
+.friend-row .dot.online { background: var(--color-accent); box-shadow: 0 0 6px rgba(62, 207, 142, 0.6); }
+.friend-row .fname { font-weight: 600; flex: 1; }
+.friend-row .fstate { font-size: 12px; color: var(--color-text-dim); }

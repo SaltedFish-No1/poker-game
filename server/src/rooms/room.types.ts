@@ -10,6 +10,8 @@ export interface RoomPlayer {
   isBot: boolean;
   ready: boolean;
   connected: boolean;
+  /** 托管：AI 代打（对局中可随时开关） */
+  autoPlay: boolean;
 }
 
 export interface Room {
@@ -37,5 +39,7 @@ export interface RoomInfo {
   status: RoomStatus;
   hostId: string;
   maxPlayers: number;
-  players: Array<Pick<RoomPlayer, 'id' | 'name' | 'seat' | 'isBot' | 'ready' | 'connected'>>;
+  players: Array<
+    Pick<RoomPlayer, 'id' | 'name' | 'seat' | 'isBot' | 'ready' | 'connected' | 'autoPlay'>
+  >;
 }

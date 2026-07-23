@@ -2,8 +2,24 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { analyze, beats, enumerateMoves } from './combos';
 import { DoudizhuGame } from './engine';
-import { chooseBid, chooseMove } from './rule-bot';
+import { chooseBid, chooseDouble, chooseMove } from './rule-bot';
 import { seededRng, rankOf } from './cards';
+
+/** 跑完叫分与加倍阶段，进入出牌 */
+function fastForwardToPlaying(game: DoudizhuGame, doubleAll = false) {
+  let guard = 0;
+  while (game.phase === 'bidding' && guard++ < 50) {
+    const want = chooseBid(game.hands[game.turn], game.currentBid);
+    game.bid(game.turn, game.currentBid === 0 ? Math.max(1, want) : want);
+  }
+  guard = 0;
+  while (game.phase === 'doubling' && guard++ < 10) {
+    game.double(
+      game.turn,
+      doubleAll || chooseDouble(game.hands[game.turn], game.turn === game.landlord),
+    );
+  }
+}
 
 // id 帮助函数：rank(3..15) 的第 i 张（i 0..3）
 const c = (rank: number, i = 0) => (rank - 3) * 4 + i;
@@ -74,6 +90,11 @@ test('机器人自对弈：对局总能正常结束', () => {
     while (game.phase === 'bidding' && guard++ < 50) {
       game.bid(game.turn, chooseBid(game.hands[game.turn], game.currentBid));
     }
+    assert.equal(game.phase, 'doubling', `seed ${seed} 应进入加倍阶段`);
+    guard = 0;
+    while (game.phase === 'doubling' && guard++ < 10) {
+      game.double(game.turn, chooseDouble(game.hands[game.turn], game.turn === game.landlord));
+    }
     assert.equal(game.phase, 'playing', `seed ${seed} 应进入出牌阶段`);
     guard = 0;
     while (game.phase === 'playing' && guard++ < 1000) {
@@ -99,11 +120,7 @@ test('机器人自对弈：对局总能正常结束', () => {
 
 test('引擎校验：非法出牌被拒绝', () => {
   const game = new DoudizhuGame(seededRng(42), 0);
-  while (game.phase === 'bidding') {
-    const want = chooseBid(game.hands[game.turn], game.currentBid);
-    // 保证第一个叫分者至少叫 1 分，避免流局重发
-    game.bid(game.turn, game.currentBid === 0 ? Math.max(1, want) : want);
-  }
+  fastForwardToPlaying(game);
   const seat = game.turn;
   assert.throws(() => game.play((seat + 1) % 3, [game.hands[(seat + 1) % 3][0]]), /轮到/);
   assert.throws(() => game.pass(seat), /不能过/);
@@ -115,4 +132,47 @@ test('引擎校验：非法出牌被拒绝', () => {
   const before = game.multiplier;
   assert.ok(before >= 1);
   assert.ok(game.hands[seat].every((id) => rankOf(id) >= 3));
+});
+
+test('加倍阶段：顺序为农民→农民→地主，非当前座位不能表态', () => {
+  const game = new DoudizhuGame(seededRng(7), 0);
+  while (game.phase === 'bidding') {
+    const want = chooseBid(game.hands[game.turn], game.currentBid);
+    game.bid(game.turn, game.currentBid === 0 ? Math.max(1, want) : want);
+  }
+  assert.equal(game.phase, 'doubling');
+  const landlord = game.landlord!;
+  assert.equal(game.turn, (landlord + 1) % 3, '下家农民先表态');
+  assert.throws(() => game.double(landlord, true), /还没轮到/);
+  game.double((landlord + 1) % 3, true);
+  game.double((landlord + 2) % 3, false);
+  assert.equal(game.phase, 'doubling', '地主最后表态');
+  assert.equal(game.turn, landlord);
+  game.double(landlord, true);
+  assert.equal(game.phase, 'playing');
+  assert.equal(game.turn, landlord, '地主先出牌');
+  assert.deepEqual(
+    [game.doubles[(landlord + 1) % 3], game.doubles[(landlord + 2) % 3], game.doubles[landlord]],
+    [true, false, true],
+  );
+});
+
+test('认输：按当前倍数逐对结算且零和，不算春天', () => {
+  const game = new DoudizhuGame(seededRng(11), 0);
+  fastForwardToPlaying(game, true); // 三家全加倍
+  const landlord = game.landlord!;
+  const farmers = [0, 1, 2].filter((s) => s !== landlord);
+  // 地主认输 → 农民胜
+  game.surrender(landlord);
+  const r = game.result!;
+  assert.equal(r.landlordWon, false);
+  assert.equal(r.surrenderSeat, landlord);
+  assert.equal(r.spring, false);
+  assert.equal(r.scores.reduce((a, b) => a + b, 0), 0, '零和');
+  // 全员加倍：每对 = 底分 × 公共倍数 × 2(地主) × 2(农民)
+  const pair = r.baseScore * r.multiplier * 4;
+  for (const f of farmers) assert.equal(r.scores[f], pair);
+  assert.equal(r.scores[landlord], -2 * pair);
+  // 结束后不能再行动
+  assert.throws(() => game.surrender(farmers[0]), /出牌阶段/);
 });

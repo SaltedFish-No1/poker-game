@@ -11,6 +11,12 @@ export function chooseBid(hand: number[], currentBid: number): number {
   return want > currentBid ? want : 0;
 }
 
+/** 规则 AI 加倍决策：手牌强才加倍（地主门槛更高，输赢都翻倍） */
+export function chooseDouble(hand: number[], isLandlord: boolean): boolean {
+  const s = handStrength(hand);
+  return isLandlord ? s >= 11 : s >= 8;
+}
+
 /**
  * 规则 AI 出牌。返回要出的牌，null 表示过。
  * 策略（简化版）：

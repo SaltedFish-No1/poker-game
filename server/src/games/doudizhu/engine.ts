@@ -1,7 +1,7 @@
 import { newDeck, shuffle, sortCards, rankOf } from './cards';
 import { Combo, analyze, beats, enumerateMoves } from './combos';
 
-export type Phase = 'bidding' | 'playing' | 'finished';
+export type Phase = 'bidding' | 'doubling' | 'playing' | 'finished';
 
 /**
  * 斗地主规则参数（变体扩展点）。
@@ -37,8 +37,12 @@ export interface GameResult {
   spring: boolean;      // 春天：农民一张未出
   antiSpring: boolean;  // 反春：地主只出过一手
   baseScore: number;
+  /** 公共倍数（炸弹/王炸/春天），不含各家加倍 */
   multiplier: number;
-  /** 每个座位的得分（地主 ±2x，农民 ±1x） */
+  /** 各座位是否加倍（结算按 地主↔农民 逐对翻倍） */
+  doubles: (boolean | null)[];
+  /** 认输的座位；正常打完为 null */
+  surrenderSeat: number | null;
   scores: number[];
 }
 
@@ -58,7 +62,11 @@ export interface PlayerView {
   /** 每个座位最近一次动作（用于桌面展示），null=还没动作，combo null=过 */
   lastMoves: (MoveRecord | null)[];
   bids: BidRecord[];
+  /** 加倍阶段各座位的表态（null=未表态） */
+  doubles: (boolean | null)[];
   canPass: boolean;
+  /** 轮到自己但没有任何牌能压过上家（要不起，只能过） */
+  mustPass: boolean;
   result: GameResult | null;
   playedCards: number[][];
 }
@@ -73,6 +81,9 @@ export class DoudizhuGame {
   multiplier = 1;
   bids: BidRecord[] = [];
   private redeals = 0;
+  /** 加倍表态（叫分结束后进入加倍阶段：农民先表态，地主最后） */
+  doubles: (boolean | null)[] = [null, null, null];
+  private doublingOrder: number[] = [];
 
   /** 当前回合需要压的牌 */
   toBeat: { seat: number; combo: Combo } | null = null;
@@ -104,6 +115,7 @@ export class DoudizhuGame {
     this.turn = firstBidder;
     this.phase = 'bidding';
     this.bids = [];
+    this.doubles = [null, null, null];
   }
 
   get currentBid(): number {
@@ -145,10 +157,36 @@ export class DoudizhuGame {
     this.landlord = seat;
     this.baseScore = score;
     this.hands[seat] = sortCards([...this.hands[seat], ...this.bottom]);
-    this.phase = 'playing';
-    this.turn = seat;
+    // 进入加倍阶段：下家农民 → 上家农民 → 地主
+    this.phase = 'doubling';
+    this.doubles = [null, null, null];
+    this.doublingOrder = [(seat + 1) % 3, (seat + 2) % 3, seat];
+    this.turn = this.doublingOrder[0];
     this.toBeat = null;
     this.passStreak = 0;
+  }
+
+  /** 加倍表态；全部表态后进入出牌阶段 */
+  double(seat: number, wantDouble: boolean): void {
+    if (this.phase !== 'doubling') throw new Error('当前不在加倍阶段');
+    if (seat !== this.turn) throw new Error('还没轮到你表态');
+    this.doubles[seat] = wantDouble;
+    const next = this.doublingOrder.find((s) => this.doubles[s] === null);
+    if (next !== undefined) {
+      this.turn = next;
+      return;
+    }
+    this.phase = 'playing';
+    this.turn = this.landlord!;
+  }
+
+  /** 认输：立即按当前倍数结算，认输方阵营判负 */
+  surrender(seat: number): void {
+    if (this.phase !== 'playing') throw new Error('只有出牌阶段可以认输');
+    const landlord = this.landlord!;
+    const winnerSeat =
+      seat === landlord ? [0, 1, 2].find((s) => s !== landlord)! : landlord;
+    this.finish(winnerSeat, seat);
   }
 
   /** 当前玩家的合法出牌（不含过牌） */
@@ -209,23 +247,36 @@ export class DoudizhuGame {
     return combo;
   }
 
-  private finish(winnerSeat: number) {
+  private finish(winnerSeat: number, surrenderSeat: number | null = null) {
     this.phase = 'finished';
     const landlord = this.landlord!;
     const landlordWon = winnerSeat === landlord;
     const farmers = [0, 1, 2].filter((s) => s !== landlord);
-    const spring = landlordWon && farmers.every((s) => this.playsBySeat[s] === 0);
-    const antiSpring = !landlordWon && this.playsBySeat[landlord] === 1;
+    // 认输结算不算春天/反春
+    const spring =
+      surrenderSeat === null &&
+      landlordWon &&
+      farmers.every((s) => this.playsBySeat[s] === 0);
+    const antiSpring =
+      surrenderSeat === null && !landlordWon && this.playsBySeat[landlord] === 1;
     let multiplier = this.multiplier;
     if (spring || antiSpring) multiplier *= 2;
-    const unit = this.baseScore * multiplier;
+    // 地主与每个农民逐对结算：底分 × 公共倍数 × 地主加倍 × 该农民加倍
+    const landlordDouble = this.doubles[landlord] ? 2 : 1;
     const scores = [0, 0, 0];
-    scores[landlord] = landlordWon ? 2 * unit : -2 * unit;
-    for (const s of farmers) scores[s] = landlordWon ? -unit : unit;
+    let landlordTotal = 0;
+    for (const s of farmers) {
+      const pair =
+        this.baseScore * multiplier * landlordDouble * (this.doubles[s] ? 2 : 1);
+      scores[s] = landlordWon ? -pair : pair;
+      landlordTotal += landlordWon ? pair : -pair;
+    }
+    scores[landlord] = landlordTotal;
     this.multiplier = multiplier;
     this.result = {
       winnerSeat, landlordWon, spring, antiSpring,
-      baseScore: this.baseScore, multiplier, scores,
+      baseScore: this.baseScore, multiplier,
+      doubles: [...this.doubles], surrenderSeat, scores,
     };
   }
 
@@ -252,7 +303,13 @@ export class DoudizhuGame {
       toBeat: this.toBeat,
       lastMoves,
       bids: this.bids,
+      doubles: [...this.doubles],
       canPass: this.canPass(seat),
+      mustPass:
+        this.phase === 'playing' &&
+        this.turn === seat &&
+        this.toBeat !== null &&
+        this.legalMoves(seat).length === 0,
       result: this.result,
       playedCards: this.playedCards,
     };

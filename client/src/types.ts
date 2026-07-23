@@ -18,7 +18,7 @@ export const COMBO_NAMES: Record<ComboType, string> = {
   plane2: '飞机带对', four2: '四带二', four2pairs: '四带两对', bomb: '炸弹', rocket: '王炸',
 };
 
-export type Phase = 'bidding' | 'playing' | 'finished';
+export type Phase = 'bidding' | 'doubling' | 'playing' | 'finished';
 
 export interface MoveRecord { seat: number; combo: Combo | null; }
 export interface BidRecord { seat: number; score: number; }
@@ -30,6 +30,8 @@ export interface GameResult {
   antiSpring: boolean;
   baseScore: number;
   multiplier: number;
+  doubles: (boolean | null)[];
+  surrenderSeat: number | null;
   scores: number[];
 }
 
@@ -46,7 +48,9 @@ export interface DoudizhuView {
   toBeat: { seat: number; combo: Combo } | null;
   lastMoves: (MoveRecord | null)[];
   bids: BidRecord[];
+  doubles: (boolean | null)[];
   canPass: boolean;
+  mustPass: boolean;
   result: GameResult | null;
   playedCards: number[][];
 }
@@ -61,6 +65,13 @@ export interface RoomPlayerInfo {
   isBot: boolean;
   ready: boolean;
   connected: boolean;
+  autoPlay: boolean;
+}
+
+export interface FriendInfo {
+  id: string;
+  name: string;
+  online: boolean;
 }
 
 export interface RoomInfo {

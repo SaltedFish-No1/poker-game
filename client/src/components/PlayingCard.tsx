@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { RANK_LABELS, SUIT_LABELS, rankOf, suitOf } from '../types';
 
 export type CardSize = 'sm' | 'md' | 'lg';
@@ -13,11 +14,13 @@ export function PlayingCard({
   size = 'md',
   selected = false,
   onClick,
+  style,
 }: {
   id: number;
   size?: CardSize;
   selected?: boolean;
   onClick?: () => void;
+  style?: CSSProperties;
 }) {
   const rank = rankOf(id);
   const isJoker = rank >= 16;
@@ -27,6 +30,7 @@ export function PlayingCard({
     <div
       className={`pcard pcard--${size} ${colorCls} ${selected ? 'selected' : ''}`}
       onClick={onClick}
+      style={style}
     >
       {isJoker ? (
         <>

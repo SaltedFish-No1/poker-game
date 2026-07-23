@@ -7,6 +7,7 @@ import { DesignPage } from './pages/DesignPage';
 import { DoudizhuTable } from './games/doudizhu/DoudizhuTable';
 import type {
   DoudizhuView,
+  FriendInfo,
   GameAction,
   GameCatalogItem,
   RoomInfo,
@@ -31,6 +32,10 @@ export default function App() {
   const [myRoom, setMyRoom] = useState<RoomInfo | null>(null);
   const [gameView, setGameView] = useState<DoudizhuView | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [friends, setFriends] = useState<FriendInfo[]>([]);
+  const [incoming, setIncoming] = useState<Array<{ id: string; name: string }>>([]);
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [pendingOut, setPendingOut] = useState<Set<string>>(new Set());
   const toastSeq = useRef(0);
   const myRoomId = useRef<string | null>(null);
 
@@ -42,6 +47,10 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('playerName', name);
+    // 向服务端注册昵称（好友系统使用）
+    if (socket.connected) {
+      request('player:hello', { name }).catch(() => undefined);
+    }
   }, [name]);
 
   useEffect(() => {
@@ -62,7 +71,12 @@ export default function App() {
   }, [toast]);
 
   useEffect(() => {
-    const onConnect = () => setConnected(true);
+    const onConnect = () => {
+      setConnected(true);
+      request('player:hello', {
+        name: localStorage.getItem('playerName') ?? '',
+      }).catch(() => undefined);
+    };
     const onDisconnect = () => {
       setConnected(false);
       // 断线即被移出房间（服务端同样处理）
@@ -77,19 +91,30 @@ export default function App() {
     const onGameState = (d: { roomId: string; view: DoudizhuView }) => {
       if (d.roomId === myRoomId.current) setGameView(d.view);
     };
+    const onFriendList = (d: { friends: FriendInfo[] }) => setFriends(d.friends ?? []);
+    const onFriendIncoming = (d: { id: string; name: string }) =>
+      setIncoming((q) => (q.some((x) => x.id === d.id) ? q : [...q, d]));
+    const onFriendAccepted = (d: { name: string }) =>
+      toast(`${d.name} 通过了你的好友申请`, 'success');
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('lobby:rooms', onRooms);
     socket.on('room:update', onRoomUpdate);
     socket.on('game:state', onGameState);
+    socket.on('friend:list', onFriendList);
+    socket.on('friend:incoming', onFriendIncoming);
+    socket.on('friend:accepted', onFriendAccepted);
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('lobby:rooms', onRooms);
       socket.off('room:update', onRoomUpdate);
       socket.off('game:state', onGameState);
+      socket.off('friend:list', onFriendList);
+      socket.off('friend:incoming', onFriendIncoming);
+      socket.off('friend:accepted', onFriendAccepted);
     };
-  }, []);
+  }, [toast]);
 
   const enterRoom = (roomId: string) => {
     myRoomId.current = roomId;
@@ -158,6 +183,31 @@ export default function App() {
     fn().catch((e: Error) => toast(e.message));
   };
 
+  const canAddFriend = (playerId: string) =>
+    playerId !== (socket.id ?? '') &&
+    !playerId.startsWith('bot:') &&
+    !friends.some((f) => f.id === playerId) &&
+    !pendingOut.has(playerId);
+
+  const handleAddFriend = async (playerId: string) => {
+    try {
+      await request('friend:request', { toId: playerId });
+      setPendingOut((s0) => new Set(s0).add(playerId));
+      toast('好友申请已发送', 'success');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+
+  const respondFriend = async (fromId: string, accept: boolean) => {
+    setIncoming((q) => q.filter((x) => x.id !== fromId));
+    try {
+      await request('friend:respond', { fromId, accept });
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+
   const isDesign = hashRoute.startsWith('#/design');
 
   let content;
@@ -171,8 +221,11 @@ export default function App() {
         myId={socket.id ?? ''}
         onAction={handleAction}
         onHint={handleHint}
+        onAutoPlay={(enabled) => wrap(() => request('game:auto', { enabled }))()}
         onAgain={wrap(() => request('room:again'))}
         onLeave={handleLeave}
+        canAddFriend={canAddFriend}
+        onAddFriend={handleAddFriend}
       />
     );
   } else if (myRoom) {
@@ -184,6 +237,8 @@ export default function App() {
         onRemoveBot={(seat) => wrap(() => request('room:removeBot', { seat }))()}
         onStart={wrap(() => request('room:start'))}
         onLeave={handleLeave}
+        canAddFriend={canAddFriend}
+        onAddFriend={handleAddFriend}
       />
     );
   } else {
@@ -213,6 +268,9 @@ export default function App() {
               <Badge>规则 AI</Badge>
             ))}
           {connected ? <Badge tone="green">已连接</Badge> : <Badge tone="red">连接中…</Badge>}
+          <Button size="sm" variant="ghost" onClick={() => setFriendsOpen(true)}>
+            👥 好友{friends.length > 0 ? ` (${friends.filter((f) => f.online).length}/${friends.length})` : ''}
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setEditingName(true)}>
             🧑 {name}
           </Button>
@@ -240,6 +298,49 @@ export default function App() {
           </Button>
         </div>
       </Modal>
+      {/* 好友申请弹窗（对应《好友申请与加倍确认弹窗》设计文件） */}
+      <Modal open={incoming.length > 0} title="好友申请">
+        {incoming[0] && (
+          <>
+            <div className="dlg-friend__from">
+              <div className="avatar">🧑</div>
+              <div>
+                <div className="who">{incoming[0].name}</div>
+                <div className="desc">请求加你为好友，成为好友后可以互相看到在线状态</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <Button variant="ghost" onClick={() => respondFriend(incoming[0].id, false)}>
+                拒绝
+              </Button>
+              <Button variant="primary" onClick={() => respondFriend(incoming[0].id, true)}>
+                同意
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* 好友列表 */}
+      <Modal open={friendsOpen} title="我的好友" onClose={() => setFriendsOpen(false)}>
+        {friends.length === 0 ? (
+          <p style={{ color: 'var(--color-text-dim)' }}>
+            还没有好友——在房间或结算界面对其他玩家点「＋好友」发起申请。
+            （当前为会话内好友，断线后重置）
+          </p>
+        ) : (
+          <div className="friends-list">
+            {friends.map((f) => (
+              <div key={f.id} className="friend-row">
+                <span className={`dot ${f.online ? 'online' : ''}`} />
+                <span className="fname">{f.name}</span>
+                <span className="fstate">{f.online ? '在线' : '离线'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
       <ToastStack toasts={toasts} />
     </>
   );

@@ -4,13 +4,15 @@ import { LlmService } from '../../ai/llm.service';
 import { cardsLabel } from './cards';
 import { Combo, COMBO_NAMES } from './combos';
 import { DoudizhuGame } from './engine';
-import { chooseBid, chooseMove } from './rule-bot';
+import { chooseBid, chooseDouble, chooseMove } from './rule-bot';
 
 /** 斗地主动作协议 */
 export type DoudizhuAction =
   | { type: 'bid'; score: number }
+  | { type: 'double'; double: boolean }
   | { type: 'play'; cards: number[] }
-  | { type: 'pass' };
+  | { type: 'pass' }
+  | { type: 'surrender' };
 
 /** 将引擎包装为通用 Match 接口 */
 export class DoudizhuMatch implements Match {
@@ -38,6 +40,12 @@ export class DoudizhuMatch implements Match {
       case 'bid':
         this.game.bid(seat, Number(a.score));
         return;
+      case 'double':
+        this.game.double(seat, Boolean(a.double));
+        return;
+      case 'surrender':
+        this.game.surrender(seat);
+        return;
       case 'play': {
         if (!Array.isArray(a.cards) || a.cards.some((c) => !Number.isInteger(c))) {
           throw new Error('无效的出牌数据');
@@ -54,7 +62,14 @@ export class DoudizhuMatch implements Match {
   }
 
   hint(seat: number): GameAction | null {
-    if (this.game.phase !== 'playing' || this.game.turn !== seat) return null;
+    if (this.game.turn !== seat) return null;
+    if (this.game.phase === 'doubling') {
+      return {
+        type: 'double',
+        double: chooseDouble(this.game.hands[seat], seat === this.game.landlord),
+      };
+    }
+    if (this.game.phase !== 'playing') return null;
     const move = chooseMove(this.game, seat);
     return move ? { type: 'play', cards: move } : { type: 'pass' };
   }
@@ -73,6 +88,13 @@ export class DoudizhuAi implements MatchAi {
     const game = (match as DoudizhuMatch).game;
     if (game.phase === 'bidding') {
       return { type: 'bid', score: await this.decideBid(game, seat) };
+    }
+    if (game.phase === 'doubling') {
+      // 加倍是简单的期望收益判断，规则策略即可，不必消耗 LLM 调用
+      return {
+        type: 'double',
+        double: chooseDouble(game.hands[seat], seat === game.landlord),
+      };
     }
     const cards = await this.decideMove(game, seat);
     return cards ? { type: 'play', cards } : { type: 'pass' };

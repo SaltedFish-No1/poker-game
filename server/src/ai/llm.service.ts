@@ -36,6 +36,12 @@ export class LlmService {
     return provider(this.modelId);
   }
 
+  /**
+   * 思考模式（Ark 扩展参数）：对局决策要求低延迟，默认关闭；
+   * 可用 ARK_THINKING=enabled/auto 打开。
+   */
+  private readonly thinking = process.env.ARK_THINKING ?? 'disabled';
+
   /** 生成文本；未启用或失败时返回 null（调用方降级处理） */
   async complete(prompt: string): Promise<string | null> {
     if (!this.enabled) return null;
@@ -44,6 +50,10 @@ export class LlmService {
         model: this.model(),
         abortSignal: AbortSignal.timeout(this.timeoutMs),
         prompt,
+        providerOptions: {
+          // openai-compatible provider 会把该对象合并进请求体
+          ark: { thinking: { type: this.thinking } },
+        },
       });
       return text;
     } catch (err) {

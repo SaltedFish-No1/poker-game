@@ -2,6 +2,11 @@
 
 全栈扑克游戏大厅：内置多种扑克玩法（当前已上线**斗地主**），支持**多人联机**与**单人 AI 对战**。
 
+斗地主功能：叫分抢地主 → **加倍阶段**（倒计时确认弹窗）→ 出牌（要不起自动过 +
+全套牌型特效：发牌动画/叫地主/顺子/连对/三带/飞机/炸弹震屏/王炸）→ 胜负结算
+（春天/反春、逐对加倍计分、认输印章、胜利彩带）。支持**认输**、**托管**（AI 代打）、
+断线 AI 接管，以及会话内**好友系统**（申请/同意弹窗、在线状态）。
+
 - 前端：React 18 + TypeScript + Vite（Socket.IO 客户端）
 - 后端：NestJS 11 + **Fastify** + Socket.IO
 - AI：**Vercel AI SDK**（`ai` + `@ai-sdk/openai-compatible`）编排，默认对接火山方舟（Ark）
@@ -43,6 +48,7 @@ npm run build -w server && npm test
 | `ARK_BASE_URL` | OpenAI 兼容端点 | `https://ark.cn-beijing.volces.com/api/v3` |
 | `ARK_MODEL` | 推理接入点/模型 ID | `doubao-seed-2-1-turbo-260628` |
 | `AI_TIMEOUT_MS` | 单次决策超时（超时降级规则 AI） | `20000` |
+| `ARK_THINKING` | 思考模式（`disabled`/`enabled`/`auto`），对局决策默认关闭思考保证低延迟 | `disabled` |
 
 AI 编排通过 Vercel AI SDK 的 `openai-compatible` provider 实现，**不绑定供应商**：
 换 `ARK_BASE_URL`/`ARK_MODEL` 即可切到 OpenAI、DeepSeek、通义、本地 vLLM 等任何

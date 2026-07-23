@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CardBack, CardRow, PlayingCard } from '../components/PlayingCard';
+import { Confetti, FxEvent, FxKind, FxLayer } from '../components/Effects';
 import { Badge, Button, Input, Modal, Panel, Segmented } from '../ui';
 
 /**
@@ -7,10 +8,20 @@ import { Badge, Button, Input, Modal, Panel, Segmented } from '../ui';
  * 对应设计文件：《基础控件展示页.dc.html》《扑克牌牌面.dc.html》
  * 规范文档：docs/UI-UX-SPEC.md
  */
+let fxSeq = 1000;
+
 export function DesignPage() {
   const [seg, setSeg] = useState<'single' | 'multi'>('single');
   const [modalOpen, setModalOpen] = useState(false);
+  const [doubleOpen, setDoubleOpen] = useState(false);
+  const [friendOpen, setFriendOpen] = useState(false);
+  const [fx, setFx] = useState<FxEvent | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set([16]));
+
+  const playFx = (kind: FxKind, text: string) => {
+    setFx({ id: ++fxSeq, kind, text });
+    setTimeout(() => setFx(null), 1700);
+  };
 
   const toggle = (c: number) =>
     setSelected((prev) => {
@@ -185,6 +196,101 @@ export function DesignPage() {
           ))}
         </div>
       </div>
+
+      {/* ===== 业务弹窗（好友申请与加倍确认弹窗） ===== */}
+      <div className="section-title">业务弹窗</div>
+      <div className="design-section">
+        <div className="design-row">
+          <Button onClick={() => setDoubleOpen(true)}>加倍确认弹窗</Button>
+          <Button onClick={() => setFriendOpen(true)}>好友申请弹窗</Button>
+        </div>
+        <Modal open={doubleOpen} title="是否加倍？" onClose={() => setDoubleOpen(false)}>
+          <div className="dlg-double__role">
+            你是<b style={{ color: 'var(--color-primary)' }}>农民</b>
+            ，加倍只影响你与地主的输赢
+          </div>
+          <div className="dlg-double__mult">
+            <div className="cell">
+              当前倍数<b>×3</b>
+            </div>
+            <span className="arrow">➜</span>
+            <div className="cell up">
+              加倍后<b>×6</b>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', alignItems: 'center' }}>
+            <span className="countdown">9</span>
+            <Button onClick={() => setDoubleOpen(false)}>不加倍</Button>
+            <Button variant="primary" onClick={() => setDoubleOpen(false)}>
+              加倍 ×2
+            </Button>
+          </div>
+        </Modal>
+        <Modal open={friendOpen} title="好友申请" onClose={() => setFriendOpen(false)}>
+          <div className="dlg-friend__from">
+            <div className="avatar">🧑</div>
+            <div>
+              <div className="who">卧龙先生</div>
+              <div className="desc">请求加你为好友，成为好友后可以互相看到在线状态</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <Button variant="ghost" onClick={() => setFriendOpen(false)}>
+              拒绝
+            </Button>
+            <Button variant="primary" onClick={() => setFriendOpen(false)}>
+              同意
+            </Button>
+          </div>
+        </Modal>
+      </div>
+
+      {/* ===== 特效总览 ===== */}
+      <div className="section-title">特效总览（点击预览）</div>
+      <div className="design-section">
+        <div className="design-row">
+          <Button onClick={() => playFx('landlord', '卧龙先生 当上地主')}>叫地主</Button>
+          <Button onClick={() => playFx('double', '加倍 ×2')}>加倍</Button>
+          <Button onClick={() => playFx('straight', '顺子')}>顺子</Button>
+          <Button onClick={() => playFx('pairStraight', '连对')}>连对</Button>
+          <Button onClick={() => playFx('triple', '三带一')}>三带一</Button>
+          <Button onClick={() => playFx('triple', '三带二')}>三带二</Button>
+          <Button onClick={() => playFx('plane', '飞机')}>飞机</Button>
+          <Button onClick={() => playFx('bomb', '炸弹')}>炸弹</Button>
+          <Button onClick={() => playFx('rocket', '王炸')}>王炸</Button>
+        </div>
+        <div className="design-row" style={{ marginTop: 16 }}>
+          <div>
+            <div style={{ marginBottom: 8, color: 'var(--color-text-dim)', fontSize: 13 }}>
+              要不起提示
+            </div>
+            <span className="mustpass">要不起</span>
+          </div>
+          <div>
+            <div style={{ marginBottom: 8, color: 'var(--color-text-dim)', fontSize: 13 }}>
+              认输印章
+            </div>
+            <span className="stamp">认输</span>
+          </div>
+          <div>
+            <div style={{ marginBottom: 8, color: 'var(--color-text-dim)', fontSize: 13 }}>
+              托管标记
+            </div>
+            <Badge tone="gold">托管中</Badge>
+          </div>
+          <div style={{ position: 'relative', width: 180, height: 80 }}>
+            <div style={{ marginBottom: 8, color: 'var(--color-text-dim)', fontSize: 13 }}>
+              胜利彩带
+            </div>
+            <Confetti />
+          </div>
+        </div>
+        <p style={{ color: 'var(--color-text-dim)', fontSize: 12 }}>
+          发牌动画 / 底牌翻牌 / 叫分气泡 / 震屏在牌桌内由对局事件自动触发。
+        </p>
+      </div>
+
+      <FxLayer fx={fx} />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { GameAction } from '../games/game.interface';
+import { FriendsService } from '../social/friends.service';
 import { RoomMode } from './room.types';
 import { RoomManager } from './room.manager';
 
@@ -38,10 +39,14 @@ export class RoomsGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly manager: RoomManager) {}
+  constructor(
+    private readonly manager: RoomManager,
+    private readonly friends: FriendsService,
+  ) {}
 
   afterInit(server: Server) {
     this.manager.setServer(server);
+    this.friends.setServer(server);
   }
 
   handleConnection(socket: Socket) {
@@ -50,6 +55,7 @@ export class RoomsGateway
 
   handleDisconnect(socket: Socket) {
     this.manager.onDisconnect(socket.id);
+    this.friends.disconnect(socket.id);
   }
 
   private run<T>(fn: () => T): Ack<T> {
@@ -157,5 +163,55 @@ export class RoomsGateway
   @SubscribeMessage('game:hint')
   onHint(@ConnectedSocket() socket: Socket): Ack {
     return this.run(() => ({ action: this.manager.hint(socket.id) }));
+  }
+
+  @SubscribeMessage('game:auto')
+  onAutoPlay(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { enabled?: boolean },
+  ): Ack {
+    return this.run(() => ({
+      roomId: this.manager.setAutoPlay(socket.id, Boolean(body?.enabled)).id,
+    }));
+  }
+
+  // ---------- 玩家 / 好友 ----------
+
+  @SubscribeMessage('player:hello')
+  onPlayerHello(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { name?: string },
+  ): Ack {
+    return this.run(() => {
+      this.friends.hello(socket.id, sanitizeName(body?.name));
+      return { playerId: socket.id };
+    });
+  }
+
+  @SubscribeMessage('friend:request')
+  onFriendRequest(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { toId?: string },
+  ): Ack {
+    return this.run(() => {
+      this.friends.request(socket.id, String(body?.toId ?? ''));
+      return {};
+    });
+  }
+
+  @SubscribeMessage('friend:respond')
+  onFriendRespond(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { fromId?: string; accept?: boolean },
+  ): Ack {
+    return this.run(() => {
+      this.friends.respond(socket.id, String(body?.fromId ?? ''), Boolean(body?.accept));
+      return {};
+    });
+  }
+
+  @SubscribeMessage('friend:list')
+  onFriendList(@ConnectedSocket() socket: Socket): Ack {
+    return this.run(() => ({ friends: this.friends.list(socket.id) }));
   }
 }
