@@ -1,0 +1,102 @@
+/* ============================================================
+   牌桌样式（占位实现）
+   ⚠️ 用户将提供正式的牌桌设计样式——届时整体替换本文件即可。
+   结构约定（DoudizhuTable.tsx 输出的 DOM）：
+   .table-page
+     .table-top    > .seat（左对手）.seat--right（右对手）
+     .table-center 底牌 / 倍数 / 状态
+     .table-bottom > .my-area（我的出牌区 + 手牌 + 操作区）
+   ============================================================ */
+
+.table-page {
+  min-height: calc(100vh - 61px);
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(90% 70% at 50% 30%, var(--color-felt-1), var(--color-felt-2) 75%);
+}
+.table-top {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-6) 0;
+}
+.table-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  min-height: 180px;
+}
+.table-bottom { padding: 0 var(--space-6) var(--space-5); }
+
+.seat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 190px;
+  max-width: 300px;
+}
+.seat--right { align-items: flex-end; }
+.seat__head { display: flex; align-items: center; gap: 10px; }
+.seat--right .seat__head { flex-direction: row-reverse; }
+.seat__name { font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.seat__count { color: var(--color-text-dim); font-size: 12px; }
+.seat__lastmove { min-height: 68px; display: flex; align-items: center; }
+.seat--right .seat__lastmove { justify-content: flex-end; }
+
+.pass-bubble, .bid-bubble {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-dim);
+  font-size: 13px;
+}
+.bid-bubble { color: var(--color-primary); border-color: rgba(232, 185, 60, 0.4); }
+
+.center-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-dim);
+  font-size: 13px;
+}
+.center-info .mult { color: var(--color-primary); font-weight: 800; font-size: 15px; }
+
+.thinking { display: inline-flex; gap: 3px; align-items: center; color: var(--color-text-dim); font-size: 13px; }
+.thinking i {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--color-text-dim);
+  animation: blink 1.2s infinite;
+}
+.thinking i:nth-child(2) { animation-delay: 0.2s; }
+.thinking i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%, 70%, 100% { opacity: 0.25; } 35% { opacity: 1; } }
+
+.my-area { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.my-lastmove { min-height: 70px; display: flex; align-items: center; justify-content: center; }
+.action-bar { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 8px 0 2px; min-height: 56px; }
+.my-info { display: flex; align-items: center; gap: 10px; justify-content: center; color: var(--color-text-dim); font-size: 13px; }
+
+/* 结算 */
+.result-rows { display: flex; flex-direction: column; gap: 8px; margin: var(--space-4) 0; }
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-m);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+}
+.result-row .spacer { flex: 1; }
+.score-pos { color: var(--color-accent); font-weight: 800; }
+.score-neg { color: #ff8d82; font-weight: 800; }
+.result-title { font-size: 22px; font-weight: 800; text-align: center; }
+.result-sub { text-align: center; color: var(--color-text-dim); font-size: 13px; }
+
+@media (max-width: 768px) {
+  .seat { min-width: 0; }
+}

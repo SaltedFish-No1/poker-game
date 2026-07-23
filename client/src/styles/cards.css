@@ -1,0 +1,121 @@
+/* ============================================================
+   扑克牌牌面样式
+   对应设计文件《扑克牌牌面.dc.html》——拿到正式样式后整体替换本文件。
+   结构约定（组件 PlayingCard.tsx 输出的 DOM）：
+   .pcard.pcard--{sm|md|lg}.pcard--{red|black}[.selected]
+     .pcard__corner > .suit   左上角竖排点数+花色
+     .pcard__pip              右下角大花色
+     .pcard__joker / .pcard__star  王牌
+   .pcard--back               牌背
+   .hand / .cardrow           手牌扇形 / 紧凑排
+   ============================================================ */
+
+.pcard {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  background: var(--card-face);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  user-select: none;
+  flex-shrink: 0;
+}
+.pcard--md { width: 68px; height: 95px; }
+.pcard--sm { width: 46px; height: 64px; border-radius: 6px; }
+.pcard--lg { width: 80px; height: 112px; }
+
+.pcard__corner {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  font-family: var(--font-card);
+  font-weight: 700;
+}
+.pcard--md .pcard__corner { font-size: 17px; }
+.pcard--sm .pcard__corner { font-size: 13px; top: 3px; left: 4px; }
+.pcard--lg .pcard__corner { font-size: 20px; }
+.pcard__corner .suit { font-size: 0.82em; font-family: var(--font-ui); }
+
+.pcard__pip {
+  position: absolute;
+  right: 7px;
+  bottom: 4px;
+  font-size: 26px;
+  opacity: 0.9;
+  font-family: var(--font-ui);
+}
+.pcard--sm .pcard__pip { font-size: 17px; right: 5px; bottom: 2px; }
+.pcard--lg .pcard__pip { font-size: 32px; }
+
+.pcard--red { color: var(--suit-red); }
+.pcard--black { color: var(--suit-black); }
+
+.pcard__joker {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  writing-mode: vertical-lr;
+  letter-spacing: 2px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.pcard--sm .pcard__joker { font-size: 10px; letter-spacing: 1px; }
+.pcard__star { position: absolute; right: 7px; bottom: 4px; font-size: 22px; }
+
+.pcard--back {
+  background:
+    repeating-linear-gradient(45deg, rgba(232, 185, 60, 0.18) 0 4px, transparent 4px 9px),
+    repeating-linear-gradient(-45deg, rgba(232, 185, 60, 0.18) 0 4px, transparent 4px 9px),
+    linear-gradient(160deg, #1c3a30, #122820);
+  border: 1px solid rgba(232, 185, 60, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pcard--back::after {
+  content: '♠';
+  color: rgba(232, 185, 60, 0.75);
+  font-size: 22px;
+}
+.pcard--back::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(232, 185, 60, 0.35);
+  border-radius: 5px;
+}
+
+/* 手牌扇形 */
+.hand {
+  display: flex;
+  justify-content: center;
+  padding-top: 18px;
+  min-height: 120px;
+}
+.hand .pcard {
+  margin-left: -26px;
+  cursor: pointer;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+.hand .pcard:first-child { margin-left: 0; }
+.hand .pcard:hover { transform: translateY(-6px); }
+.hand .pcard.selected {
+  transform: translateY(-14px);
+  box-shadow: 0 0 0 2px var(--color-primary), 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+.hand.disabled .pcard { cursor: default; filter: brightness(0.94); }
+.hand.disabled .pcard:hover { transform: none; }
+
+.cardrow { display: flex; }
+.cardrow .pcard { margin-left: -18px; }
+.cardrow .pcard:first-child { margin-left: 0; }
+
+@media (max-width: 768px) {
+  .pcard--md { width: 58px; height: 81px; }
+  .hand .pcard { margin-left: -34px; }
+}
